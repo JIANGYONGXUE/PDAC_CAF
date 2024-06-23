@@ -1,0 +1,3 @@
+> load("~/00-2024-CAF-PDAC/afdata/merged_pdac.RData")
+> merged_pdac[["percent.mt"]] <- PercentageFeatureSet(merged_pdac, pattern = "^MT-")
+> VlnPlot(merged_pdac, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
