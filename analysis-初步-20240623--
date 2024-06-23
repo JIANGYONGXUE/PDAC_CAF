@@ -1,3 +1,54 @@
-> load("~/00-2024-CAF-PDAC/afdata/merged_pdac.RData")
-> merged_pdac[["percent.mt"]] <- PercentageFeatureSet(merged_pdac, pattern = "^MT-")
-> VlnPlot(merged_pdac, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+library(ggrepel)
+library(ggplot2)
+library(Seurat)
+library(tidyverse)
+library(dplyr)
+saveRDS(merged_pdac,file = '~/00-2024-CAF-PDAC/afdata/merged_pdac.rds')
+merged_pdac[["percent.mt"]] <- PercentageFeatureSet(merged_pdac, pattern = "^MT-")
+VlnPlot(merged_pdac, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+#线粒体基因都在 25%以下，nFeature 在 200-8000 之间
+#2.2 检查数据的可用性
+plot1 <- FeatureScatter(merged_pdac, feature1 = "nCount_RNA", feature2 = "percent.mt") 
+plot2 <- FeatureScatter(merged_pdac, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") 
+plot1 + plot2
+#nCount_RNA 和线粒体基因间无相关(-0.1)，表明测序得到的 Count 基本都是细胞的功能基因， 
+#nCount_RNA 和 nFeature_RNA 强相关(0.86)，符合逻辑
+#2.3 数据过滤
+merged_pdac <- subset(merged_pdac, subset = nFeature_RNA > 200 & nFeature_RNA < 8000 & percent.mt < 25)
+#3 数据的标准化
+merged_pdac <- NormalizeData(merged_pdac, normalization.method = "LogNormalize", scale.factor = 1e4)
+#4 识别差异基因/高变基因
+merged_pdac <- FindVariableFeatures(merged_pdac, selection.method = 'vst', nfeatures = 2000) 
+top10 <- head(VariableFeatures(merged_pdac), 10)
+plot1 <- VariableFeaturePlot(merged_pdac)
+plot1
+#2.3 数据过滤
+merged_pdac <- subset(merged_pdac, subset = nFeature_RNA > 200 & nFeature_RNA < 8000 & percent.mt < 25)
+#3 数据的标准化
+merged_pdac <- NormalizeData(merged_pdac, normalization.method = "LogNormalize", scale.factor = 1e4)
+#4 识别差异基因/高变基因
+merged_pdac <- FindVariableFeatures(merged_pdac, selection.method = 'vst', nfeatures = 2000) 
+top10 <- head(VariableFeatures(merged_pdac), 10)
+plot1 <- VariableFeaturePlot(merged_pdac)
+plot1
+
+merged_pdac <- ScaleData(merged_pdac, vars.to.regress = "percent.mt")
+merged_pdac <- RunPCA(merged_pdac, features = VariableFeatures(merged_pdac))
+ElbowPlot(merged_pdac, ndims = 30)
+VlnPlot(merged_pdac, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+
+#5.去批次效应---------
+library(harmony)
+# 查看元数据的前几行
+head(merged_pdac@meta.data)
+##根据donor进行去批次
+merged_pdac <- merged_pdac %>% RunHarmony("donor", plot_covergence = T)
+#去批次以后umap
+merged_pdac <- FindNeighbors(merged_pdac, dims = 1:5)
+merged_pdac <- FindClusters(merged_pdac, resolution = 0.2)
+table(merged_pdac$seurat_clusters)
+merged_pdac <- RunUMAP(merged_pdac, dims = 1:5) 
+DimPlot(merged_pdac, reduction = 'umap',label = TRUE)
+DimPlot(merged_pdac, reduction = 'umap',label = TRUE,split.by = 'donor')
+merged_pdac <- RunUMAP(merged_pdac, dims = 1:10)
+DimPlot(merged_pdac, reduction = 'umap',label = TRUE)
