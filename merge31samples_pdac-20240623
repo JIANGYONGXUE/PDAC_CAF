@@ -1,0 +1,45 @@
+##分别读取并创建Seurat对象
+donor01 <- Read10X(data.dir = "~/00-2024-CAF-PDAC/afdata/donor1")
+donor01 <- CreateSeuratObject(counts = donor01)
+…
+##尝试merge函数合并
+merge1_2 <- merge(donor01,donor02, add.cell.ids = c("donor01","donor02"))
+> merge1_2
+An object of class Seurat 
+49056 features across 1371 samples within 1 assay 
+Active assay: RNA (49056 features, 0 variable features)
+> merge1_2_3 <- merge(donor01,donor02,donor03 add.cell.ids = c("donor01","donor02","donor03"))
+Error: unexpected symbol in "merge1_2_3 <- merge(donor01,donor02,donor03 add.cell.ids"
+##merge函数只能合并2个
+##采用for循环测试合并23个donor的数据
+donors <- list(donor01, donor02,donor03,donor04,donor05,
++                donor06,donor07,donor08,donor09,donor10,
++                donor11,donor12,donor13,donor14,donor15,
++                donor16,donor17,donor18,donor19,donor20,
++                donor21,donor22,donor23)  # 确保这里包含了所有供体的Seurat对象
+> # 创建一个空列表来存储合并过程中的中间结果
+> merged_donors <- list()
+> # 外层循环控制合并轮数，内层循环进行实际的两两合并
+> for (i in seq(along = donors)) {
++   for (j in seq(along = donors)[-i]) {
++     # 将两个供体合并，并给合并后的Seurat对象命名
++     merged_donors[[paste0("merged_", i, "_", j)]] <- merge(donors[[i]], donors[[j]],
++                                                            add.cell.ids = c(paste0("donor", i), paste0("donor", j)))
++   }
++ }
+
+> # 经过多轮合并后，merged_donors列表中将包含多个合并后的Seurat对象
+> # 最后一个合并的对象将是最终的合并结果
+> merged_pdac <- merged_donors[[tail(names(merged_donors), n = 1)]]
+> # 现在final_merged_seurat包含了所有供体合并后的数据
+> merged_pdac
+An object of class Seurat 
+36601 features across 10403 samples within 1 assay 
+Active assay: RNA (36601 features, 0 variable features)
+> save.image("~/00-2024-CAF-PDAC/afdata/merged_31sample.RData")
+> saveRDS(merged_pdac,file = '~/00-2024-CAF-PDAC/afdata/merged_pdac.rds')
+##保存为rds文件（Large Seurat 607.2M）
+##保存为merged_pdac.RData
+#后续使用直接
+load("~/00-2024-CAF-PDAC/afdata/merged_pdac.RData")
+#即可进行下游分析
